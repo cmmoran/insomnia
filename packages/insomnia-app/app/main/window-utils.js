@@ -49,6 +49,7 @@ export function createWindow() {
   }
 
   mainWindow = new BrowserWindow({
+    backgroundColor: '#222',
     // Make sure we don't initialize the window outside the bounds
     x: isVisibleOnAnyDisplay ? x : undefined,
     y: isVisibleOnAnyDisplay ? y : undefined,
