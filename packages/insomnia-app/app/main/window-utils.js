@@ -17,6 +17,11 @@ import { docsBase } from '../common/documentation';
 
 const { app, Menu, BrowserWindow, shell, dialog } = electron;
 
+// So we can use native modules in renderer
+// NOTE: This will be deprecated in Electron 10 and impossible in 11
+//   https://github.com/electron/electron/issues/18397
+app.allowRendererProcessReuse = false;
+
 const DEFAULT_WIDTH = 1280;
 const DEFAULT_HEIGHT = 700;
 const MINIMUM_WIDTH = 500;
@@ -66,6 +71,9 @@ export function createWindow() {
     icon: path.resolve(__dirname, 'static/icon.png'),
     webPreferences: {
       zoomFactor: zoomFactor,
+      nodeIntegration: true,
+      webviewTag: true,
+      enableRemoteModule: true,
     },
   });
 
@@ -268,7 +276,7 @@ export function createWindow() {
         label: 'Show Open Source Licenses',
         click: (menuItem, w, e) => {
           const licensePath = path.resolve(app.getAppPath(), '../opensource-licenses.txt');
-          shell.openItem(licensePath);
+          shell.openPath(licensePath);
         },
       },
       {
@@ -290,8 +298,8 @@ export function createWindow() {
   if (!isMac()) {
     helpMenu.submenu.unshift({
       label: `${MNEMONIC_SYM}About`,
-      click: () => {
-        dialog.showMessageBox({
+      click: async () => {
+        await dialog.showMessageBox({
           type: 'info',
           title: getAppName(),
           message: getAppLongName(),
@@ -387,23 +395,20 @@ export function createWindow() {
   return mainWindow;
 }
 
-function showUnresponsiveModal() {
-  dialog.showMessageBox(
-    {
-      type: 'info',
-      buttons: ['Cancel', 'Reload'],
-      defaultId: 1,
-      cancelId: 0,
-      title: 'Unresponsive',
-      message: 'Insomnia has become unresponsive. Do you want to reload?',
-    },
-    id => {
-      if (id === 1) {
-        mainWindow.destroy();
-        createWindow();
-      }
-    },
-  );
+async function showUnresponsiveModal() {
+  const id = await dialog.showMessageBox({
+    type: 'info',
+    buttons: ['Cancel', 'Reload'],
+    defaultId: 1,
+    cancelId: 0,
+    title: 'Unresponsive',
+    message: 'Insomnia has become unresponsive. Do you want to reload?',
+  });
+
+  if (id === 1) {
+    mainWindow.destroy();
+    createWindow();
+  }
 }
 
 function saveBounds() {
