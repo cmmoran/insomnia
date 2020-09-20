@@ -3,7 +3,17 @@ import * as React from 'react';
 import autobind from 'autobind-decorator';
 import classnames from 'classnames';
 import PageLayout from './page-layout';
-import { Breadcrumb, Button, Dropdown, DropdownItem, Header, SvgIcon } from 'insomnia-components';
+import {
+  Breadcrumb,
+  Button,
+  Dropdown,
+  DropdownItem,
+  Header,
+  ListGroup,
+  UnitTestItem,
+  UnitTestResultItem,
+} from 'insomnia-components';
+import UnitTestEditable from './unit-test-editable';
 import ErrorBoundary from './error-boundary';
 import CodeEditor from './codemirror/code-editor';
 import designerLogo from '../images/insomnia-designer-logo.svg';
@@ -327,19 +337,11 @@ class WrapperUnitTest extends React.PureComponent<Props, State> {
                 </h2>
               )}
             </div>
-            <ul>
+            <ListGroup>
               {tests.map((t, i) => (
-                <li key={i}>
-                  <SvgIcon icon={t.err.message ? 'error' : 'success'} /> {t.title} ({t.duration} ms)
-                  {t.err.message && (
-                    <>
-                      <br />
-                      <code className="text-danger">{t.err.message}</code>
-                    </>
-                  )}
-                </li>
+                <UnitTestResultItem key={i} item={t} />
               ))}
-            </ul>
+            </ListGroup>
           </div>
         )}
       </div>
@@ -349,49 +351,24 @@ class WrapperUnitTest extends React.PureComponent<Props, State> {
   renderUnitTest(unitTest: UnitTest): React.Node {
     const { settings } = this.props.wrapperProps;
     const { testsRunning } = this.state;
-
     const selectableRequests = this.buildSelectableRequests();
 
     return (
-      <div key={unitTest._id} className="unit-tests__tests__block">
-        <div className="unit-tests__tests__block__header">
-          <h2 className="pad-left-md">
-            <Editable
-              singleClick
-              onSubmit={this._handleChangeTestName.bind(this, unitTest)}
-              value={unitTest.name}
-            />
-          </h2>
-          <div className="form-control form-control--outlined">
-            <select
-              name="request"
-              id="request"
-              onChange={this._handleSetActiveRequest.bind(this, unitTest)}
-              value={unitTest.requestId || '__NULL__'}>
-              <option value="__NULL__">
-                {selectableRequests.length ? '-- Select Request --' : '-- No Requests --'}
-              </option>
-              {selectableRequests.map(({ name, request }) => (
-                <option key={request._id} value={request._id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Dropdown
-            renderButton={() => (
-              <Button variant="outlined">
-                <SvgIcon icon="gear" />
-              </Button>
-            )}>
-            <DropdownItem
-              disabled={testsRunning && testsRunning.find(t => t._id === unitTest._id)}
-              onClick={() => this._handleRunTest(unitTest)}>
-              Run Test
-            </DropdownItem>
-            <DropdownItem onClick={() => this._handleDeleteTest(unitTest)}>Delete</DropdownItem>
-          </Dropdown>
-        </div>
+      <UnitTestItem
+        item={unitTest}
+        key={unitTest._id}
+        onSetActiveRequest={this._handleSetActiveRequest.bind(this, unitTest)}
+        onDeleteTest={this._handleDeleteTest.bind(this, unitTest)}
+        onRunTest={this._handleRunTest.bind(this, unitTest)}
+        testsRunning={testsRunning}
+        selectedRequestId={unitTest.requestId}
+        selectableRequests={selectableRequests}
+        testNameEditable={
+          <UnitTestEditable
+            onSubmit={this._handleChangeTestName.bind(this, unitTest)}
+            value={unitTest.name}
+          />
+        }>
         <CodeEditor
           dynamicHeight
           manualPrettify
@@ -409,7 +386,7 @@ class WrapperUnitTest extends React.PureComponent<Props, State> {
           lineWrapping={settings.editorLineWrapping}
           placeholder=""
         />
-      </div>
+      </UnitTestItem>
     );
   }
 
@@ -446,9 +423,10 @@ class WrapperUnitTest extends React.PureComponent<Props, State> {
               size="default"
               disabled={testsRunning}>
               {testsRunning ? 'Running... ' : 'Run Tests'}
+              <i className="fa fa-play space-left"></i>
             </Button>
           </div>
-          {activeUnitTests.map(this.renderUnitTest)}
+          <ListGroup>{activeUnitTests.map(this.renderUnitTest)}</ListGroup>
         </div>
         {this.renderResults()}
       </div>
@@ -464,7 +442,7 @@ class WrapperUnitTest extends React.PureComponent<Props, State> {
       <ErrorBoundary showAlert>
         <div className="unit-tests__sidebar">
           <div className="pad-sm">
-            <Button variant="outlined" bg="surprise" onClick={this._handleCreateTestSuite}>
+            <Button variant="outlined" onClick={this._handleCreateTestSuite}>
               New Test Suite
             </Button>
           </div>

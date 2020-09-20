@@ -2,13 +2,12 @@ import GitVCS, { GIT_CLONE_DIR, GIT_INSOMNIA_DIR } from '../git-vcs';
 import { setupDateMocks } from './util';
 import { MemPlugin } from '../mem-plugin';
 import path from 'path';
-jest.mock('path');
+import * as git from 'isomorphic-git';
 
-describe.each(['win32', 'posix'])('Git-VCS using path.%s', type => {
+describe('Git-VCS', () => {
   let fooTxt = '';
   let barTxt = '';
   beforeAll(() => {
-    path.__mockPath(type);
     fooTxt = path.join(GIT_INSOMNIA_DIR, 'foo.txt');
     barTxt = path.join(GIT_INSOMNIA_DIR, 'bar.txt');
   });
@@ -141,6 +140,20 @@ describe.each(['win32', 'posix'])('Git-VCS using path.%s', type => {
 
       await vcs.checkout('master');
       expect((await vcs.log()).length).toBe(1);
+    });
+  });
+
+  describe('push()', () => {
+    it('should throw an exception when push response contains errors', async () => {
+      git.push.mockReturnValue({
+        ok: ['unpack'],
+        errors: ['refs/heads/master pre-receive hook declined'],
+      });
+
+      const vcs = new GitVCS();
+      await expect(vcs.push()).rejects.toThrowError(
+        'Push rejected with errors: ["refs/heads/master pre-receive hook declined"].\n\nGo to View > Toggle DevTools > Console for more information.',
+      );
     });
   });
 

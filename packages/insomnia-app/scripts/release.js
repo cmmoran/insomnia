@@ -15,11 +15,11 @@ const octokit = new Octokit({
 if (require.main === module) {
   process.nextTick(async () => {
     try {
-      const buildContext = await buildTask.start();
+      const buildContext = await buildTask.start(true);
       await packageTask.start();
       await start(buildContext.app, buildContext.version);
     } catch (err) {
-      console.log('[package] ERROR:', err);
+      console.log('[release] ERROR:', err);
       process.exit(1);
     }
   });
@@ -27,16 +27,19 @@ if (require.main === module) {
 
 async function start(app, version) {
   console.log(`[release] Creating release for ${app} ${version}`);
+  const appId = appConfig().appId;
 
+  // globs should only use forward slash, so force use of path.posix
+  const distGlob = ext => path.posix.join('dist', appId, '**', `*${ext}`);
   const assetGlobs = {
-    darwin: ['dist/**/*.zip', 'dist/**/*.dmg'],
-    win32: ['dist/squirrel-windows/*'],
+    darwin: [distGlob('.zip'), distGlob('.dmg')],
+    win32: [path.posix.join('dist', appId, 'squirrel-windows', '*')],
     linux: [
-      'dist/**/*.snap',
-      'dist/**/*.rpm',
-      'dist/**/*.deb',
-      'dist/**/*.AppImage',
-      'dist/**/*.tar.gz',
+      distGlob('.snap'),
+      distGlob('.rpm'),
+      distGlob('.deb'),
+      distGlob('.AppImage'),
+      distGlob('.tar.gz'),
     ],
   };
 

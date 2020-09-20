@@ -45,25 +45,25 @@ export function authorizeUserInWindow(
   return new Promise((resolve, reject) => {
     let finalUrl = null;
 
-    function _parseUrl(currentUrl) {
+    function _parseUrl(currentUrl, source) {
       if (currentUrl.match(urlSuccessRegex)) {
         console.log(
-          `[oauth2] Matched success redirect to "${currentUrl}" with ${urlSuccessRegex.toString()}`,
+          `[oauth2] ${source}: Matched success redirect to "${currentUrl}" with ${urlSuccessRegex.toString()}`,
         );
         finalUrl = currentUrl;
         child.close();
       } else if (currentUrl.match(urlFailureRegex)) {
         console.log(
-          `[oauth2] Matched error redirect to "${currentUrl}" with ${urlFailureRegex.toString()}`,
+          `[oauth2] ${source}: Matched error redirect to "${currentUrl}" with ${urlFailureRegex.toString()}`,
         );
         finalUrl = currentUrl;
         child.close();
       } else if (currentUrl === url) {
         // It's the first one, so it's not a redirect
-        console.log(`[oauth2] Loaded "${currentUrl}"`);
+        console.log(`[oauth2] ${source}: Loaded "${currentUrl}"`);
       } else {
         console.log(
-          `[oauth2] Ignoring URL "${currentUrl}". Didn't match ${urlSuccessRegex.toString()}`,
+          `[oauth2] ${source}: Ignoring URL "${currentUrl}". Didn't match ${urlSuccessRegex.toString()}`,
         );
       }
     }
@@ -91,26 +91,23 @@ export function authorizeUserInWindow(
     child.webContents.on('did-navigate', () => {
       // Be sure to resolve URL so that we can handle redirects with no host like /foo/bar
       const currentUrl = child.webContents.getURL();
-      _parseUrl(currentUrl);
+      _parseUrl(currentUrl, 'did-navigate');
+    });
+
+    child.webContents.on('will-redirect', (e, url) => {
+      // Also listen for will-redirect, as some redirections do not trigger 'did-navigate'
+      // 'will-redirect' does not cover all cases that 'did-navigate' does, so both events are required
+      // GitHub's flow triggers only 'did-navigate', while Microsoft's only 'will-redirect'
+      _parseUrl(url, 'will-redirect');
     });
 
     child.webContents.on('did-fail-load', (e, errorCode, errorDescription, url) => {
       // Listen for did-fail-load to be able to parse the URL even when the callback server is unreachable
-      _parseUrl(url);
+      _parseUrl(url, 'did-fail-load');
     });
-
-    const options = {};
-
-    // Force user-agent for GitHub until we update Chromium version. Note, we don't do this for
-    // everything because it breaks things. https://github.com/kong/insomnia/issues/1816
-    if (url.includes('github.com')) {
-      options.userAgent =
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, ' +
-        'like Gecko) Chrome/78.0.3904.108 Safari/537.36';
-    }
 
     // Show the window to the user after it loads
     child.on('ready-to-show', child.show.bind(child));
-    child.loadURL(url, options);
+    child.loadURL(url);
   });
 }
