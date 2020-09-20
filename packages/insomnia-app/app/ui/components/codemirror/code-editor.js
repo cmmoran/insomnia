@@ -66,6 +66,9 @@ const BASE_CODEMIRROR_OPTIONS = {
     // search box stays open after pressing Enter
     [isMac() ? 'Cmd-F' : 'Ctrl-F']: 'findPersistent',
 
+    [isMac() ? 'Shift-Cmd--' : 'Shift-Ctrl--']: 'foldAll',
+    [isMac() ? 'Shift-Cmd-=' : 'Shift-Ctrl-=']: 'unfoldAll',
+
     'Shift-Tab': 'indentLess',
     Tab: 'indentMore',
   }),
@@ -160,6 +163,19 @@ class CodeEditor extends React.Component {
   setSelection(chStart, chEnd, lineStart, lineEnd) {
     if (this.codeMirror) {
       this.codeMirror.setSelection({ line: lineStart, ch: chStart }, { line: lineEnd, ch: chEnd });
+      this.codeMirror.scrollIntoView({ line: lineStart, char: chStart });
+    }
+  }
+
+  scrollToSelection(chStart, chEnd, lineStart, lineEnd) {
+    const selectionFocusPos = window.innerHeight / 2 - 100;
+    if (this.codeMirror) {
+      this.codeMirror.setSelection({ line: lineStart, ch: chStart }, { line: lineEnd, ch: chEnd });
+      this.codeMirror.scrollIntoView(
+        { line: lineStart, char: chStart },
+        // If sizing permits, position selection just above center
+        selectionFocusPos,
+      );
     }
   }
 
@@ -700,6 +716,8 @@ class CodeEditor extends React.Component {
       return 'application/edn';
     } else if (CodeEditor._isXML(mimeType)) {
       return 'application/xml';
+    } else if (mimeType.includes('kotlin')) {
+      return 'text/x-kotlin';
     } else {
       return mimeType;
     }
@@ -914,12 +932,14 @@ class CodeEditor extends React.Component {
       style,
       type,
       isVariableUncovered,
+      raw,
     } = this.props;
 
     const classes = classnames(className, {
       editor: true,
       'editor--dynamic-height': dynamicHeight,
       'editor--readonly': readOnly,
+      'raw-editor': raw,
     });
 
     const toolbarChildren = [];
@@ -1070,6 +1090,7 @@ CodeEditor.propTypes = {
   jumpOptions: PropTypes.object,
   uniquenessKey: PropTypes.any,
   isVariableUncovered: PropTypes.bool,
+  raw: PropTypes.bool,
 };
 
 export default CodeEditor;

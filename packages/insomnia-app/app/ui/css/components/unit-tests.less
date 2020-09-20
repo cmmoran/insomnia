@@ -13,6 +13,13 @@
     grid-template-columns: 1fr 0;
   }
 
+  .editor {
+    overflow-y: hidden !important;
+    max-height: 25em;
+    overflow-y: auto;
+    margin: var(--padding-sm) 0 var(--padding-md) 0;
+  }
+
   &__tests {
     grid-area: body-left;
     background: var(--color-bg);
@@ -26,39 +33,11 @@
       border-bottom: 1px dashed var(--hl-md);
       padding-bottom: var(--padding-md);
 
-      .editor {
-        overflow-y: hidden !important;
-      }
-
       &__header {
         display: flex;
         flex-direction: row;
         align-items: center;
-
-        h2 {
-          font-size: var(--font-size-lg);
-          white-space: nowrap;
-        }
-
-        & > * {
-          margin-top: var(--padding-md);
-          margin-bottom: var(--padding-md);
-          margin-right: var(--padding-md);
-        }
-
-        & > *:first-child {
-          margin-right: auto;
-          margin-left: var(--padding-md);
-        }
-
-        .form-control {
-          width: 100%;
-          max-width: 18rem;
-
-          * {
-            margin: 0;
-          }
-        }
+        padding:0px var(--padding-sm) 0px 0px;
       }
     }
   }
@@ -69,12 +48,11 @@
     background: var(--color-bg);
     color: var(--color-font);
     overflow-y: auto;
+    box-sizing: border-box;
 
     ul {
-      padding-top: var(--padding-md);
       li {
-        display: block;
-        padding: var(--padding-xs) var(--padding-md);
+        padding: var(--padding-sm) var(--padding-sm) var(--padding-sm) var(--padding-sm);
       }
     }
   }
@@ -130,7 +108,21 @@
     padding-right: 0;
     border-bottom: 1px solid var(--hl-md);
     display: flex;
+    position: sticky;
+    // Double that of CodeMirror's topmost element.
+    z-index: 20;
+    top: 0;
     align-items: center;
+    background: var(--color-bg);
+
+    button {
+      flex: 0 0 auto;
+      align-self: center;
+      i {
+        font-size: var(--font-size-xs);
+        padding-left: var(--padding-xxs);
+      }
+    }
 
     & > * {
       margin-right: var(--padding-md);

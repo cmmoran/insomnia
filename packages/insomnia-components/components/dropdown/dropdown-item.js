@@ -5,6 +5,7 @@ import styled from 'styled-components';
 
 const StyledButton = styled.button`
   display: flex;
+  align-items: center;
   min-width: 15rem;
   font-size: var(--font-size-md);
   text-align: left;
@@ -49,9 +50,13 @@ const StyledInner = styled.div`
 
 const StyledText = styled.div`
   white-space: nowrap;
-
+  display: flex;
+  align-items: center;
   & > *:not(:first-child) {
     margin-left: 0.3em;
+  }
+  input + label {
+    padding-top: 0px !important;
   }
 `;
 
