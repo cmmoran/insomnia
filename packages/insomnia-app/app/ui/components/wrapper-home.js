@@ -3,7 +3,14 @@ import * as React from 'react';
 import * as git from 'isomorphic-git';
 import path from 'path';
 import * as db from '../../common/database';
-import autobind from 'autobind-decorator';
+import { autoBindMethodsForReact } from 'class-autobind-decorator';
+import {
+  AUTOBIND_CFG,
+  ACTIVITY_HOME,
+  ACTIVITY_SPEC,
+  ACTIVITY_DEBUG,
+  getAppName,
+} from '../../common/constants';
 import type { Workspace } from '../../models/workspace';
 import 'swagger-ui-react/swagger-ui.css';
 import {
@@ -15,6 +22,7 @@ import {
   DropdownDivider,
   DropdownItem,
   Header,
+  CircleButton,
   SvgIcon,
 } from 'insomnia-components';
 import DocumentCardDropdown from './dropdowns/document-card-dropdown';
@@ -28,7 +36,7 @@ import YAML from 'yaml';
 import TimeFromNow from './time-from-now';
 import Highlight from './base/highlight';
 import type { GlobalActivity } from '../../common/constants';
-import { ACTIVITY_DEBUG, ACTIVITY_HOME, ACTIVITY_SPEC } from '../../common/constants';
+
 import { fuzzyMatchAll } from '../../common/misc';
 import type { WrapperProps } from './wrapper';
 import Notice from './notice';
@@ -36,7 +44,7 @@ import GitRepositorySettingsModal from '../components/modals/git-repository-sett
 import PageLayout from './page-layout';
 import type { ForceToWorkspace } from '../redux/modules/helpers';
 import { ForceToWorkspaceKeys } from '../redux/modules/helpers';
-import designerLogo from '../images/insomnia-designer-logo.svg';
+import coreLogo from '../images/insomnia-core-logo.png';
 import { MemPlugin } from '../../sync/git/mem-plugin';
 import {
   GIT_CLONE_DIR,
@@ -45,6 +53,7 @@ import {
   GIT_INTERNAL_DIR,
 } from '../../sync/git/git-vcs';
 import { parseApiSpec } from '../../common/api-specs';
+import SettingsModal from './modals/settings-modal';
 
 type Props = {|
   wrapperProps: WrapperProps,
@@ -57,7 +66,7 @@ type State = {|
   filter: string,
 |};
 
-@autobind
+@autoBindMethodsForReact(AUTOBIND_CFG)
 class WrapperHome extends React.PureComponent<Props, State> {
   state = {
     filter: '',
@@ -82,7 +91,7 @@ class WrapperHome extends React.PureComponent<Props, State> {
       onComplete: async name => {
         await models.workspace.create({
           name,
-          scope: 'spec',
+          scope: 'designer',
         });
 
         trackEvent('Workspace', 'Create');
@@ -108,6 +117,10 @@ class WrapperHome extends React.PureComponent<Props, State> {
         this.props.handleImportUri(uri, ForceToWorkspaceKeys.new);
       },
     });
+  }
+
+  static _handleShowSettings() {
+    showModal(SettingsModal);
   }
 
   async _handleWorkspaceClone() {
@@ -136,6 +149,7 @@ class WrapperHome extends React.PureComponent<Props, State> {
             url,
             ...credentials,
             depth: 1,
+            noGitSuffix: true,
           });
         } catch (err) {
           showError({ title: 'Error Cloning Repository', message: err.message, error: err });
@@ -270,7 +284,7 @@ class WrapperHome extends React.PureComponent<Props, State> {
     });
   }
 
-  async _handleSetActiveWorkspace(id: string, defaultActivity: GlobalActivity) {
+  async _handleClickCard(id: string, defaultActivity: GlobalActivity) {
     const { handleSetActiveWorkspace, handleSetActiveActivity } = this.props.wrapperProps;
 
     const { activeActivity } = await models.workspaceMeta.getOrCreateByParentId(id);
@@ -350,23 +364,28 @@ class WrapperHome extends React.PureComponent<Props, State> {
       </DocumentCardDropdown>
     );
     const version = spec?.info?.version || '';
-    let label: string = 'Insomnia';
+    let label: string = 'Collection';
+    let format: string = '';
+    let labelIcon = <i className="fa fa-bars" />;
     let defaultActivity = ACTIVITY_DEBUG;
+    let title = w.name;
 
-    if (spec || w.scope === 'spec') {
-      label = '';
+    if (w.scope === 'designer') {
+      label = 'Document';
+      labelIcon = <i className="fa fa-file-o" />;
       if (specFormat === 'openapi') {
-        label = `OpenAPI ${specFormatVersion}`;
+        format = `OpenAPI ${specFormatVersion}`;
       } else if (specFormat === 'swagger') {
         // NOTE: This is not a typo, we're labeling Swagger as OpenAPI also
-        label = `OpenAPI ${specFormatVersion}`;
+        format = `OpenAPI ${specFormatVersion}`;
       }
 
       defaultActivity = ACTIVITY_SPEC;
+      title = apiSpec.fileName || title;
     }
 
     // Filter the card by multiple different properties
-    const matchResults = fuzzyMatchAll(filter, [apiSpec.fileName, label, branch, version], {
+    const matchResults = fuzzyMatchAll(filter, [title, label, branch, version], {
       splitSpace: true,
       loose: true,
     });
@@ -380,12 +399,20 @@ class WrapperHome extends React.PureComponent<Props, State> {
       <Card
         key={apiSpec._id}
         docBranch={branch && <Highlight search={filter} text={branch} />}
-        docTitle={apiSpec.fileName && <Highlight search={filter} text={apiSpec.fileName} />}
-        docVersion={version && <Highlight search={filter} text={version} />}
-        tagLabel={label && <Highlight search={filter} text={label} />}
+        docTitle={title && <Highlight search={filter} text={title} />}
+        docVersion={version && <Highlight search={filter} text={`v${version}`} />}
+        tagLabel={
+          label && (
+            <>
+              <span className="margin-right-xs">{labelIcon}</span>
+              <Highlight search={filter} text={label} />
+            </>
+          )
+        }
         docLog={log}
         docMenu={docMenu}
-        onClick={() => this._handleSetActiveWorkspace(w._id, defaultActivity)}
+        docFormat={format}
+        onClick={() => this._handleClickCard(w._id, defaultActivity)}
       />
     );
   }
@@ -395,7 +422,7 @@ class WrapperHome extends React.PureComponent<Props, State> {
       <Dropdown
         renderButton={() => (
           <Button variant="contained" bg="surprise" className="margin-left">
-            Create <i className="fa fa-caret-down" />
+            Create <i className="fa fa-caret-down pad-left-sm" />
           </Button>
         )}>
         <DropdownDivider>New</DropdownDivider>
@@ -436,36 +463,47 @@ class WrapperHome extends React.PureComponent<Props, State> {
             className="app-header"
             gridLeft={
               <React.Fragment>
-                <img src={designerLogo} alt="Insomnia" width="32" height="32" />
-                <Breadcrumb className="breadcrumb" crumbs={['Documents']} />
+                <img src={coreLogo} alt="Insomnia" width="24" height="24" />
+                <Breadcrumb className="breadcrumb" crumbs={[getAppName()]} />
               </React.Fragment>
             }
-            gridCenter={
-              <div className="form-control form-control--outlined no-margin">
-                <KeydownBinder onKeydown={this._handleKeyDown}>
-                  <input
-                    ref={this._setFilterInputRef}
-                    type="text"
-                    placeholder="Filter..."
-                    onChange={this._handleFilterChange}
-                    className="no-margin"
-                  />
-                  <span className="fa fa-search filter-icon" />
-                </KeydownBinder>
-              </div>
+            gridRight={
+              <CircleButton onClick={WrapperHome._handleShowSettings}>
+                <SvgIcon icon="gear" />
+              </CircleButton>
             }
-            gridRight={this.renderMenu()}
           />
         )}
         renderPageBody={() => (
-          <div className="document-listing theme--pane layout-body pad-top">
-            <div className="document-listing__body">
+          <div className="document-listing theme--pane layout-body">
+            <div className="document-listing__body pad-bottom">
+              <div className="row-spaced margin-top margin-bottom-sm">
+                <h2 className="no-margin">Dashboard</h2>
+                <span className="row-spaced pad-left" style={{ maxWidth: '400px' }}>
+                  <div className="form-control form-control--outlined no-margin">
+                    <KeydownBinder onKeydown={this._handleKeyDown}>
+                      <input
+                        ref={this._setFilterInputRef}
+                        type="text"
+                        placeholder="Filter..."
+                        onChange={this._handleFilterChange}
+                        className="no-margin"
+                      />
+                      <span className="fa fa-search filter-icon" />
+                    </KeydownBinder>
+                  </div>
+                  {this.renderMenu()}
+                </span>
+              </div>
               <CardContainer>{cards}</CardContainer>
               {filter && cards.length === 0 && (
                 <Notice color="subtle">
                   No documents found for <strong>{filter}</strong>
                 </Notice>
               )}
+            </div>
+            <div className="document-listing__footer vertically-center">
+              <span>{cards.length} Documents</span>
             </div>
           </div>
         )}

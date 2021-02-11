@@ -29,6 +29,7 @@ type BaseSettings = {
   environmentHighlightColorStyle: string,
   filterResponsesByEnv: boolean,
   followRedirects: boolean,
+  clearOAuth2SessionOnRestart: boolean,
   fontInterface: string | null,
   fontMonospace: string | null,
   fontSize: number,
@@ -54,9 +55,7 @@ type BaseSettings = {
   useBulkHeaderEditor: boolean,
   useBulkParametersEditor: boolean,
   validateSSL: boolean,
-
-  // Feature flags
-  enableSyncBeta: boolean,
+  hasPromptedToMigrateFromDesigner: boolean,
 };
 
 export type Settings = BaseModel & BaseSettings;
@@ -84,6 +83,7 @@ export function init(): BaseSettings {
     environmentHighlightColorStyle: 'sidebar-indicator',
     filterResponsesByEnv: false,
     followRedirects: true,
+    clearOAuth2SessionOnRestart: true,
     fontInterface: null,
     fontMonospace: null,
     fontSize: 13,
@@ -111,7 +111,7 @@ export function init(): BaseSettings {
     validateSSL: true,
 
     // Feature flags
-    enableSyncBeta: false,
+    hasPromptedToMigrateFromDesigner: false,
   };
 }
 
