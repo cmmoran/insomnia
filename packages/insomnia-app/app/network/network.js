@@ -60,7 +60,7 @@ import {
 } from 'insomnia-url';
 import fs from 'fs';
 import * as db from '../common/database';
-import * as CACerts from './cacert';
+import CACerts from './ca-certs';
 import * as plugins from '../plugins/index';
 import * as pluginContexts from '../plugins/context/index';
 import { getAuthHeader } from './authentication';
@@ -109,13 +109,27 @@ const LIBCURL_DEBUG_MIGRATION_MAP = {
   '': '',
 };
 
-let cancelRequestFunction = null;
+const cancelRequestFunctionMap = {};
 let lastUserInteraction = Date.now();
 
-export async function cancelCurrentRequest() {
-  if (typeof cancelRequestFunction === 'function') {
-    return cancelRequestFunction();
+export async function cancelRequestById(requestId) {
+  if (hasCancelFunctionForId(requestId)) {
+    const cancelRequestFunction = cancelRequestFunctionMap[requestId];
+    if (typeof cancelRequestFunction === 'function') {
+      return cancelRequestFunction();
+    }
   }
+  console.log(`[network] Failed to cancel req=${requestId} because cancel function not found`);
+}
+
+function clearCancelFunctionForId(requestId) {
+  if (hasCancelFunctionForId(requestId)) {
+    delete cancelRequestFunctionMap[requestId];
+  }
+}
+
+export function hasCancelFunctionForId(requestId) {
+  return cancelRequestFunctionMap.hasOwnProperty(requestId);
 }
 
 export async function _actuallySend(
@@ -150,6 +164,9 @@ export async function _actuallySend(
       noPlugins: boolean = false,
     ): Promise<void> {
       const timelinePath = await storeTimeline(timeline);
+
+      // Tear Down the cancellation logic
+      clearCancelFunctionForId(renderedRequest._id);
 
       const environmentId = environment ? environment._id : null;
       const responsePatchBeforeHooks = Object.assign(
@@ -224,7 +241,7 @@ export async function _actuallySend(
 
     try {
       // Setup the cancellation logic
-      cancelRequestFunction = async () => {
+      cancelRequestFunctionMap[renderedRequest._id] = async () => {
         await respond(
           {
             elapsedTime: curl.getInfo(Curl.info.TOTAL_TIME) * 1000,
@@ -400,23 +417,20 @@ export async function _actuallySend(
         addTimelineText('Disable SSL validation');
       }
 
-      // Setup CA Root Certificates if not on Mac. Thanks to libcurl, Mac will use
-      // certificates form the OS.
-      if (process.platform !== 'darwin') {
-        const baseCAPath = getTempDir();
-        const fullCAPath = pathJoin(baseCAPath, CACerts.filename);
+      // Setup CA Root Certificates
+      const baseCAPath = getTempDir();
+      const fullCAPath = pathJoin(baseCAPath, 'ca-certs.pem');
 
-        try {
-          fs.statSync(fullCAPath);
-        } catch (err) {
-          // Doesn't exist yet, so write it
-          mkdirp.sync(baseCAPath);
-          fs.writeFileSync(fullCAPath, CACerts.blob);
-          console.log('[net] Set CA to', fullCAPath);
-        }
-
-        setOpt(Curl.option.CAINFO, fullCAPath);
+      try {
+        fs.statSync(fullCAPath);
+      } catch (err) {
+        // Doesn't exist yet, so write it
+        mkdirp.sync(baseCAPath);
+        fs.writeFileSync(fullCAPath, CACerts);
+        console.log('[net] Set CA to', fullCAPath);
       }
+
+      setOpt(Curl.option.CAINFO, fullCAPath);
 
       // Set cookies from jar
       if (renderedRequest.settingSendCookies) {

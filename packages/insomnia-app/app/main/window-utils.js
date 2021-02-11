@@ -15,6 +15,7 @@ import {
   MNEMONIC_SYM,
 } from '../common/constants';
 import * as misc from '../common/misc';
+import * as log from '../common/log';
 import * as os from 'os';
 import { docsBase } from '../common/documentation';
 
@@ -42,6 +43,7 @@ export function createWindow() {
   const zoomFactor = getZoomFactor();
   const { bounds, fullscreen, maximize } = getBounds();
   const { x, y, width, height } = bounds;
+  const appLogo = 'static/insomnia-core-logo_16x.png';
 
   let isVisibleOnAnyDisplay = true;
   for (const d of electron.screen.getAllDisplays()) {
@@ -71,7 +73,7 @@ export function createWindow() {
     minHeight: MINIMUM_HEIGHT,
     minWidth: MINIMUM_WIDTH,
     acceptFirstMouse: true,
-    icon: path.resolve(__dirname, 'static/icon.png'),
+    icon: path.resolve(__dirname, appLogo),
     webPreferences: {
       zoomFactor: zoomFactor,
       nodeIntegration: true,
@@ -273,6 +275,13 @@ export function createWindow() {
         },
       },
       {
+        label: `Show App ${MNEMONIC_SYM}Logs Folder`,
+        click: (menuItem, w, e) => {
+          const directory = log.getLogDirectory();
+          shell.showItemInFolder(directory);
+        },
+      },
+      {
         label: 'Show Open Source Licenses',
         click: (menuItem, w, e) => {
           const licensePath = path.resolve(app.getAppPath(), '../opensource-licenses.txt');
@@ -283,13 +292,6 @@ export function createWindow() {
         label: 'Show Software License',
         click: () => {
           shell.openExternal('https://insomnia.rest/license');
-        },
-      },
-      {
-        label: `Insomnia ${MNEMONIC_SYM}Help`,
-        accelerator: !isMac() ? 'F1' : null,
-        click: () => {
-          shell.openExternal('https://support.insomnia.rest');
         },
       },
     ],
@@ -370,17 +372,6 @@ export function createWindow() {
             const dir = app.getPath('desktop');
             fs.writeFileSync(path.join(dir, `Screenshot-${new Date()}.png`), buffer);
           });
-        },
-      },
-      {
-        label: `${MNEMONIC_SYM}Toggle Insomnia`,
-        click: () => {
-          const w = BrowserWindow.getFocusedWindow();
-          if (!w || !w.webContents) {
-            return;
-          }
-
-          w.webContents.send('toggle-insomnia');
         },
       },
     ],

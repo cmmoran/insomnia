@@ -1,7 +1,8 @@
 // @flow
 
 import * as React from 'react';
-import autobind from 'autobind-decorator';
+import { autoBindMethodsForReact } from 'class-autobind-decorator';
+import { AUTOBIND_CFG } from '../../../common/constants';
 import { Dropdown, DropdownButton, DropdownDivider, DropdownItem } from '../base/dropdown';
 import Link from '../base/link';
 import Modal from '../base/modal';
@@ -25,7 +26,7 @@ type State = {
   error: string,
 };
 
-@autobind
+@autoBindMethodsForReact(AUTOBIND_CFG)
 class SyncShareModal extends React.PureComponent<Props, State> {
   modal: ?Modal;
 
@@ -71,6 +72,14 @@ class SyncShareModal extends React.PureComponent<Props, State> {
     const { vcs } = this.props;
     this.setState({ loading: true });
     this.modal && this.modal.show();
+
+    if (!vcs.hasProject()) {
+      this.setState({
+        error: 'Please set up sync to be able to share the workspace',
+        loading: false,
+      });
+      return;
+    }
 
     let results;
     try {
@@ -151,7 +160,7 @@ class SyncShareModal extends React.PureComponent<Props, State> {
             <Link
               button
               className="btn btn--super-compact inline-block"
-              href="https://insomnia.rest/app/teams/">
+              href="https://app.insomnia.rest/app/teams/">
               Manage Teams
             </Link>
           </div>
